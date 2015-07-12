@@ -111,7 +111,7 @@ switchAppInfo :: (ReflexHost t, MonadHold t m, Reflex t)
 switchAppInfo initialInfo updatedInfo = do
   toPerform <- switch <$> hold initialToPerform updatedToPerform
   toQuit    <- switch <$> hold initialToQuit updatedToQuit
-  pure $ AppInfo
+  pure AppInfo
     { eventsToPerform = pure toPerform <> pure (getApp . triggersToFire <$> updatedInfo)
     , eventsToQuit = pure toQuit
     , triggersToFire = triggersToFire initialInfo
