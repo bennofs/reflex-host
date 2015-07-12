@@ -11,7 +11,7 @@ install:
 
 script:
  - cabal-$CABALVER sandbox init
- - cabal-$CABALVER add-source $PWD/reflex
+ - cabal-$CABALVER sandbox add-source $PWD/reflex
  - travis/script.sh
  - hlint src
 
