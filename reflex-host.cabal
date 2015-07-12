@@ -36,7 +36,7 @@ library
     , reducers
     , mtl
     , reflex >= 0.3
-    , dlistc
+    , dlist
     , dependent-sum
   exposed-modules:
     Reflex.Host.App
