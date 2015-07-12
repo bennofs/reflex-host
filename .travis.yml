@@ -7,7 +7,7 @@ before_install:
  - travis/install-hlint.sh
 install:
  - cabal-$CABALVER install --only-dependencies --enable-tests --enable-benchmarks -j
- - git clone https://github.com/ryantrinkle/reflex
+ - git clone -b develop https://github.com/ryantrinkle/reflex reflex
 
 script:
  - cabal-$CABALVER sandbox init
