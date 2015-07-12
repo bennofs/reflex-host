@@ -35,9 +35,9 @@ library
       base >= 4.4 && < 5
     , reducers
     , mtl
-    , reflex
+    , reflex >= 2.1
     , dlist
-
+    , dependent-sum
   exposed-modules:
     Reflex.Host.App
     Reflex.Host.App.Internal

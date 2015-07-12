@@ -7,8 +7,11 @@ before_install:
  - travis/install-hlint.sh
 install:
  - cabal-$CABALVER install --only-dependencies --enable-tests --enable-benchmarks -j
+ - git clone https://github.com/ryantrinkle/reflex
 
 script:
+ - cabal-$CABALVER sandbox init
+ - cabal-$CABALVER add-source $PWD/reflex
  - travis/script.sh
  - hlint src
 
@@ -16,10 +19,6 @@ matrix:
   allow_failures:
    - env: CABALVER=head GHCVER=head 
   include:
-    - env: CABALVER=1.16 GHCVER=7.4.2
-      addons: {apt: {packages: [cabal-install-1.16, ghc-7.4.2, alex-3.1.4, happy-1.19.5], sources: [hvr-ghc]}}
-    - env: CABALVER=1.18 GHCVER=7.6.3
-      addons: {apt: {packages: [cabal-install-1.18, ghc-7.6.3, alex-3.1.4, happy-1.19.5], sources: [hvr-ghc]}}
     - env: CABALVER=1.18 GHCVER=7.8.4
       addons: {apt: {packages: [cabal-install-1.18, ghc-7.8.4, alex-3.1.4, happy-1.19.5], sources: [hvr-ghc]}}
     - env: CABALVER=1.22 GHCVER=7.10.1
