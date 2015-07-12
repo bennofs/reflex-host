@@ -1,0 +1,55 @@
+name:          reflex-host
+version:       0.1
+license:       BSD3
+license-file:  LICENSE
+cabal-version: >= 1.10
+author:        Benno Fünfstück
+maintainer:    Benno Fünfstück <benno.fuenfstueck@gmail.com>
+stability:     experimental
+homepage:      http://github.com/bennofs/reflex-host/
+bug-reports:   http://github.com/bennofs/reflex-host/issues
+copyright:     Copyright (C) 2014 Benno Fünfstück
+synopsis:      Implementation support for reflex frameworks
+description:   
+  The reflex FRP library's functions for implementing a framework are quite lowlevel. 
+  This library provides higher-level support for on top of the basic functions from reflex.
+  It provides a monad with support for external event sources and performing IO actions in response to events.
+build-type:    Custom
+
+extra-source-files:
+  .ghci
+  .gitignore
+  .travis.yml
+  .vim.custom
+  README.md
+
+source-repository head
+  type: git
+  location: https://github.com/bennofs/reflex-host.git
+
+library
+  hs-source-dirs: src
+  default-language: Haskell2010
+  ghc-options: -Wall -fwarn-tabs
+  build-depends:
+      base >= 4.4 && < 5
+    , reducers
+    , mtl
+    , reflex
+    , dlist
+
+  exposed-modules:
+    Reflex.Host.App
+    Reflex.Host.App.Internal
+
+test-suite doctests
+  type:    exitcode-stdio-1.0
+  main-is: doctests.hs
+  default-language: Haskell2010
+  build-depends:
+      base
+    , directory >= 1.0
+    , doctest >= 0.9.1
+    , filepath
+  ghc-options: -Wall -threaded
+  hs-source-dirs: tests
