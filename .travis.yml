@@ -8,7 +8,7 @@ before_install:
  - travis/install-hlint.sh
 install:
  - cabal-$CABALVER sandbox init
- - git clone -b transformers-compat https://github.com/bennofs/reflex reflex
+ - git clone -b develop https://github.com/ryantrinkle/reflex reflex
  - cabal-$CABALVER sandbox add-source $PWD/reflex
  - cabal-$CABALVER install --only-dependencies --enable-tests --enable-benchmarks -j
 
