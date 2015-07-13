@@ -11,6 +11,7 @@ module Reflex.Host.App
 
 import Control.Monad
 import Control.Monad.Trans
+import Control.Concurrent
 import Data.Dependent.Sum
 import Data.IORef
 import Data.Maybe
