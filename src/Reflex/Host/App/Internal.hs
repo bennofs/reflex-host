@@ -106,7 +106,7 @@ appInfoEvents AppInfo{..} =
 --
 -- This low-level primitive is used for implementing higher-level functions such as
 -- 'switchAppHost', 'performAppHost' or 'dynAppHost'.
-switchAppInfo :: (ReflexHost t, MonadHold t m, Reflex t)
+switchAppInfo :: (Reflex t, MonadHold t m)
               => AppInfo t -> Event t (AppInfo t) -> m (AppInfo t)
 switchAppInfo initialInfo updatedInfo = do
   toPerform <- switch <$> hold initialToPerform updatedToPerform
