@@ -9,6 +9,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+-- | Module exposing the internal implementation of the host monad.
+-- There is no guarrante about stability of this module.
+-- If possible, use 'Reflex.Host.App' instead.
 module Reflex.Host.App.Internal where
 
 import Control.Applicative
@@ -42,7 +45,12 @@ data AppEnv t = AppEnv
 type AppPerformAction t = HostFrame t (DL.DList (DSum (EventTrigger t)))
 
 -- | Information required to set up the application. This also contains all reflex events
--- that the application wants to perform.
+-- that the application wants to perform. An 'AppInfo' is called *registered* or *active*
+-- if it is currently in use, meaning that the specified events are actually performed.
+--
+-- The 'AppInfo' represents the output side of a reflex FRP framework. It is used to
+-- perform IO actions in response to FRP events, for example. This is called the *effect*
+-- of the 'AppInfo'.
 data AppInfo t = AppInfo
   { -- | Events that are performed after each frame.
     --
@@ -73,6 +81,8 @@ data AppInfo t = AppInfo
   , triggersToFire :: Ap (HostFrame t) (DL.DList (DSum (EventTrigger t)))
   }
 
+-- | 'AppInfo' is a monoid. 'mappend' just merges the effects of both app infos.
+-- 'mempty' is an 'AppInfo' that has no effect at all when registered.
 instance Applicative (HostFrame t) => Monoid (AppInfo t) where
   mempty = AppInfo mempty mempty mempty
   mappend (AppInfo a b c) (AppInfo a' b' c') =
@@ -143,8 +153,11 @@ execAppHostFrame env app = do
   Ap minfo <- execWriterT . flip runReaderT env . unAppHost $ app
   minfo
 
--- | Run the 'AppHost' monad. This function will block until the application exits (by
--- firing one of the 'eventsToQuit').
+-- | Run an application. The argument is an action application host monad, where events
+-- can be set up (for example by using 'newExteneralEvent').
+--
+-- This function will block until the application exits (when one of the 'eventsToQuit'
+-- fires).
 hostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m ()
 hostApp app = do
   env <- AppEnv <$> liftIO newChan
@@ -175,11 +188,11 @@ hostApp app = do
 -- | Class providing common functionality for implementing reflex frameworks.
 --
 -- The host monad is used to setup events from external sources (such as user input) and
--- execute actions in response to events (such as performing some IO). This is class
--- encapsulating common functionality of such a monad. An implementation is the 'AppHost'
--- monad.
+-- execute actions in response to events (such as performing some IO). This class contains
+-- the primitives required for such a monad, so that higher-level functions can be
+-- implemented generically. An implementation is the 'AppHost' monad.
 --
--- Much of the functionality of this class is also provided by its superclasses.
+-- This Much of the functionality of this class is also provided by its superclasses.
 class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t m,
        MonadIO m, MonadIO (HostFrame t), MonadFix m, MonadFix (HostFrame t))
       => MonadAppHost t m | m -> t where
@@ -227,6 +240,7 @@ class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t 
   -- | Directly run a HostFrame action in the host app monad.
   liftHostFrame :: HostFrame t a -> m a
 
+-- | 'AppHost' is an implementation of 'MonadAppHost'.
 instance (ReflexHost t, MonadIO (HostFrame t)) => MonadAppHost t (AppHost t) where
   getAsyncFire = AppHost $ fmap liftIO . writeChan . envEventChan <$> ask
   getRunAppHost = AppHost $ do

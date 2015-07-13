@@ -1,18 +1,20 @@
 {-# LANGUAGE TupleSections #-}
+-- | Module supporting the implementation of frameworks. You should import this if you
+-- want to build your own framework.
 module Reflex.Host.App
-  ( MonadAppHost(..), AppInfo(..), infoPerform, infoQuit, infoFire, switchAppInfo
+  ( hostApp
   , newEventWithConstructor, newExternalEvent
   , performEventAndTrigger_, performEvent_, performEvent
-  , getPostBuild, performPostBuild, performEventAsync
   , switchAppHost, performAppHost, dynAppHost, holdAppHost
-
-  , AppHost(), hostApp
+  , getPostBuild, performPostBuild, performEventAsync
+  , MonadAppHost(..), AppHost()
+  , AppInfo(..), infoPerform, infoQuit, infoFire, switchAppInfo
   ) where
 
 import Control.Applicative
+import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
-import Control.Concurrent
 import Data.Dependent.Sum
 import Data.IORef
 import Data.Maybe
