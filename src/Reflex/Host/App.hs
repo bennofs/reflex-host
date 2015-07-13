@@ -73,31 +73,33 @@ performEvent event = do
   (result, construct) <- newEventWithConstructor
   performEventAndTrigger_ $ (fmap (F.foldMap pure) . liftIO . construct =<<) <$> event
   return result
-  
--- | Run some IO asynchronously in another thread starting in the next frame after the 
--- | input event fires, return the value as an Event
+
+-- | Run some IO asynchronously in another thread starting after the frame in which the
+-- input event fires and fire an event with the result of the IO action after it
+-- completed.
 performEventAsync :: MonadAppHost t m => Event t (IO a) -> m (Event t a)
 performEventAsync event = do
   (result, fire) <- newExternalEvent
   performEvent_ $ void . liftIO . forkIO .  (void . fire =<<) <$> event
-  return result   
-  
--- | Run a HostFrame action in the post build and fire it's event
--- | in the next frame. Typical use is sampling from Dynamics/Behaviors
--- | and providing the result in an Event more convenient to use.
+  return result
+
+-- | Run a HostFrame action after application setup is complete and fire an event with the
+-- result.
+--
+-- Typical use is sampling from Dynamics/Behaviors and providing the result in an Event
+-- more convenient to use.
 performPostBuild ::  (MonadAppHost t m) => HostFrame t a -> m (Event t a)
 performPostBuild action = do
   (event, construct) <- newEventWithConstructor  
   performPostBuild_ $ do
     a <- action
     pure $ infoFire $ liftIO (F.foldMap pure <$> construct a)
-  return event  
+  return event
 
--- | Provide an event which is triggered in the next frame.
+-- | Provide an event which is triggered directly after the initial setup of the
+-- application is completed.
 getPostBuild :: (MonadAppHost t m) =>  m (Event t ())
-getPostBuild  = performPostBuild (return ())  
-
-
+getPostBuild = performPostBuild (return ())
 
 -- | Run an action in a 'MonadAppHost' monad, but do not register the 'AppInfo' for this
 -- action nor its postBuild actions.
