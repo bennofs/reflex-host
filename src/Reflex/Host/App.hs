@@ -8,6 +8,7 @@ module Reflex.Host.App
   , AppHost(), hostApp
   ) where
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Data.Dependent.Sum
@@ -20,6 +21,9 @@ import Reflex.Host.App.Internal
 import Reflex.Host.Class
 
 import qualified Data.Foldable as F
+import qualified Data.Traversable as T
+
+import Prelude -- Silence AMP warnings
 
 -- | Create a new event and return a function that can be used to construct an event
 -- trigger with an associated value. Note that this by itself will not fire the event.
@@ -42,7 +46,7 @@ newExternalEvent :: MonadAppHost t m => m (Event t a, a -> IO Bool)
 newExternalEvent = do
   asyncFire <- getAsyncFire
   (event, construct) <- newEventWithConstructor
-  return (event, fmap isJust . traverse (asyncFire . pure) <=< construct)
+  return (event, fmap isJust . T.traverse (asyncFire . pure) <=< construct)
 
 -- | Run a monadic action after each frame in which the given event fires
 -- and possibly fire other events as a result (fired in a new frame, together with all
