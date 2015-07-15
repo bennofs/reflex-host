@@ -27,6 +27,10 @@ import qualified Data.DList as DL
 import qualified Data.Traversable as T
 --------------------------------------------------------------------------------
 
+-- | AppInputs are inputs to the application triggered by the external UI.
+--   these are stored in a channel to be processed by the application.
+type AppInputs t = [DSum (EventTrigger t)]
+
 -- | This is the environment in which the app host monad runs.
 data AppEnv t = AppEnv
   { -- | This is the channel to which external events should push their triggers.
@@ -34,7 +38,7 @@ data AppEnv t = AppEnv
     -- Because this is a channel, there is no guarrante that the event that was pushed
     -- is fired directly in the next frame, as there can already be other events waiting
     -- which will be fired first.
-    envEventChan :: Chan [DSum (EventTrigger t)]
+    envEventChan :: Chan (AppInputs t)
   }
 
 -- | An action that is run after a frame. It may return event triggers to fire events.
@@ -147,12 +151,27 @@ execAppHostFrame env app = do
 -- firing one of the 'eventsToQuit').
 hostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m ()
 hostApp app = do
-  env <- AppEnv <$> liftIO newChan
-  AppInfo{..} <- runHostFrame $ execAppHostFrame env app
+  (chan, step) <- initHostApp app
+  let 
+    runStep = do 
+      nextInput <- liftIO (readChan chan)
+      step nextInput >>= flip when runStep
+  runStep
+
+  
+-- | Initialize the application using a 'AppHost' monad. This function enables use 
+-- of use an external control loop. It returns a step  function to step the application 
+-- based on external inputs received through the channel. 
+-- The step function returns False when one of the 'eventsToQuit' is fired.
+
+initHostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m (Chan (AppInputs t), AppInputs t -> m Bool)
+initHostApp app = do
+  chan <- liftIO newChan
+  AppInfo{..} <- runHostFrame $ execAppHostFrame (AppEnv chan) app
   nextActionEvent <- subscribeEvent $ mergeWith (liftA2 (<>)) $ DL.toList eventsToPerform
   quitEvent <- subscribeEvent $ mergeWith mappend $ DL.toList eventsToQuit
-
-  let
+  
+  let 
     go [] = return ()
     go triggers = do
       (nextAction, continue) <- lift $ fireEventsAndRead triggers $
@@ -163,13 +182,12 @@ hostApp app = do
     eventValue :: MonadReadEvent t m => EventHandle t a -> m (Maybe a)
     eventValue = readEvent >=> T.sequenceA
 
-  void . runMaybeT $ do
-    go =<< lift (runHostFrame (DL.toList <$> getApp triggersToFire))
-    forever $ do
-      nextInput <- liftIO . readChan $ envEventChan env
-      go nextInput
-  return ()
-
+  
+  runHostFrame (DL.toList <$> getApp triggersToFire) >>= liftIO . writeChan chan
+  return (chan, fmap isJust . runMaybeT . go)
+  
+    
+  
 --------------------------------------------------------------------------------
 
 -- | Class providing common functionality for implementing reflex frameworks.
