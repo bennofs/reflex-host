@@ -150,21 +150,18 @@ execAppHostFrame env app = do
 -- | Run the 'AppHost' monad. This function will block until the application exits (by
 -- firing one of the 'eventsToQuit').
 hostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m ()
-hostApp app = do
-  (chan, step) <- initHostApp app
-  let 
-    runStep = do 
-      nextInput <- liftIO (readChan chan)
-      step nextInput >>= flip when runStep
-  runStep
-
+hostApp app = initHostApp app >>= mapM_ runStep where
+  runStep (chan, step) = do 
+    nextInput <- liftIO (readChan chan)
+    step nextInput >>= flip when (runStep (chan, step))
+ 
   
 -- | Initialize the application using a 'AppHost' monad. This function enables use 
 -- of use an external control loop. It returns a step  function to step the application 
 -- based on external inputs received through the channel. 
 -- The step function returns False when one of the 'eventsToQuit' is fired.
 
-initHostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m (Chan (AppInputs t), AppInputs t -> m Bool)
+initHostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m (Maybe (Chan (AppInputs t), AppInputs t -> m Bool))
 initHostApp app = do
   chan <- liftIO newChan
   AppInfo{..} <- runHostFrame $ execAppHostFrame (AppEnv chan) app
@@ -182,9 +179,10 @@ initHostApp app = do
     eventValue :: MonadReadEvent t m => EventHandle t a -> m (Maybe a)
     eventValue = readEvent >=> T.sequenceA
 
-  
-  runHostFrame (DL.toList <$> getApp triggersToFire) >>= liftIO . writeChan chan
-  return (chan, fmap isJust . runMaybeT . go)
+  runMaybeT $ do
+    go =<< lift (runHostFrame (DL.toList <$> getApp triggersToFire))
+    return (chan, fmap isJust . runMaybeT . go)
+    
   
     
   
