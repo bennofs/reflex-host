@@ -27,6 +27,7 @@ import Reflex.Class hiding (constant)
 import Reflex.Host.Class
 
 import qualified Data.DList as DL
+import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 --------------------------------------------------------------------------------
 
@@ -163,25 +164,25 @@ execAppHostFrame env app = do
 -- This function will block until the application exits (when one of the 'eventsToQuit'
 -- fires).
 hostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m ()
-hostApp app = initHostApp app >>= mapM_ runStep where
-  runStep (chan, step) = do 
+hostApp app = initHostApp app >>= F.mapM_ runStep where
+  runStep (chan, step) = do
     nextInput <- liftIO (readChan chan)
     step nextInput >>= flip when (runStep (chan, step))
- 
-  
--- | Initialize the application using a 'AppHost' monad. This function enables use 
--- of use an external control loop. It returns a step  function to step the application 
--- based on external inputs received through the channel. 
--- The step function returns False when one of the 'eventsToQuit' is fired.
 
-initHostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m (Maybe (Chan (AppInputs t), AppInputs t -> m Bool))
+
+-- | Initialize the application using a 'AppHost' monad. This function enables use
+-- of use an external control loop. It returns a step  function to step the application
+-- based on external inputs received through the channel.
+-- The step function returns False when one of the 'eventsToQuit' is fired.
+initHostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m)
+            => AppHost t () -> m (Maybe (Chan (AppInputs t), AppInputs t -> m Bool))
 initHostApp app = do
   chan <- liftIO newChan
   AppInfo{..} <- runHostFrame $ execAppHostFrame (AppEnv chan) app
   nextActionEvent <- subscribeEvent $ mergeWith (liftA2 (<>)) $ DL.toList eventsToPerform
   quitEvent <- subscribeEvent $ mergeWith mappend $ DL.toList eventsToQuit
-  
-  let 
+
+  let
     go [] = return ()
     go triggers = do
       (nextAction, continue) <- lift $ fireEventsAndRead triggers $
@@ -195,10 +196,6 @@ initHostApp app = do
   runMaybeT $ do
     go =<< lift (runHostFrame (DL.toList <$> getApp triggersToFire))
     return (chan, fmap isJust . runMaybeT . go)
-    
-  
-    
-  
 --------------------------------------------------------------------------------
 
 -- | Class providing common functionality for implementing reflex frameworks.
