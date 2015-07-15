@@ -158,8 +158,8 @@ execAppHostFrame env app = do
   Ap minfo <- execWriterT . flip runReaderT env . unAppHost $ app
   minfo
 
--- | Run an application. The argument is an action application host monad, where events
--- can be set up (for example by using 'newExteneralEvent').
+-- | Run an application. The argument is an action in the application host monad,
+-- where events can be set up (for example by using 'newExteneralEvent').
 --
 -- This function will block until the application exits (when one of the 'eventsToQuit'
 -- fires).
@@ -169,9 +169,8 @@ hostApp app = initHostApp app >>= F.mapM_ runStep where
     nextInput <- liftIO (readChan chan)
     step nextInput >>= flip when (runStep (chan, step))
 
-
 -- | Initialize the application using a 'AppHost' monad. This function enables use
--- of use an external control loop. It returns a step  function to step the application
+-- of use an external control loop. It returns a step function to step the application
 -- based on external inputs received through the channel.
 -- The step function returns False when one of the 'eventsToQuit' is fired.
 initHostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m)
