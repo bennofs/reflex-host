@@ -10,7 +10,7 @@ install:
  - cabal-$CABALVER sandbox init
  - git clone -b develop https://github.com/ryantrinkle/reflex reflex
  - cabal-$CABALVER sandbox add-source $PWD/reflex
- - cabal-$CABALVER install --constraint "vector<0.11" --only-dependencies --enable-tests --enable-benchmarks -j
+ - cabal-$CABALVER install --only-dependencies --enable-tests --enable-benchmarks -j
 
 script:
  - travis/script.sh
