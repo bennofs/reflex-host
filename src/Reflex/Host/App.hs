@@ -61,7 +61,7 @@ newExternalEvent = do
 performEventAndTrigger_ :: MonadAppHost t m => Event t (AppPerformAction t) -> m ()
 performEventAndTrigger_ = performPostBuild_ . pure . infoPerform . pure
 
--- | Run a monadic action after each frame in which the  event fires.
+-- | Run a monadic action after each frame in which the event fires.
 performEvent_ :: MonadAppHost t m => Event t (HostFrame t ()) -> m ()
 performEvent_ = performEventAndTrigger_ . fmap (mempty <$)
 
