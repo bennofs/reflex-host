@@ -127,7 +127,7 @@ switchAppInfo initialInfo updatedInfo = do
   toPerform <- switch <$> hold initialToPerform updatedToPerform
   toQuit    <- switch <$> hold initialToQuit updatedToQuit
   pure AppInfo
-    { eventsToPerform = pure toPerform <> pure (getApp . triggersToFire <$> updatedInfo)
+    { eventsToPerform = pure toPerform <> pure (getAp . triggersToFire <$> updatedInfo)
     , eventsToQuit = pure toQuit
     , triggersToFire = triggersToFire initialInfo
     }
@@ -193,7 +193,7 @@ initHostApp app = do
     eventValue = readEvent >=> T.sequenceA
 
   runMaybeT $ do
-    go =<< lift (runHostFrame (DL.toList <$> getApp triggersToFire))
+    go =<< lift (runHostFrame (DL.toList <$> getAp triggersToFire))
     return (chan, fmap isJust . runMaybeT . go)
 --------------------------------------------------------------------------------
 
