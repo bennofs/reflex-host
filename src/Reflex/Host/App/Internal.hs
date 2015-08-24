@@ -149,10 +149,11 @@ deriving instance ReflexHost t => MonadHold t (AppHost t)
 deriving instance ReflexHost t => MonadSample t (AppHost t)
 deriving instance (MonadIO (HostFrame t), ReflexHost t) => MonadIO (AppHost t)
 deriving instance ReflexHost t => MonadFix (AppHost t)
+deriving instance ReflexHost t => MonadSubscribeEvent t (AppHost t)
 
 instance ReflexHost t => MonadReflexCreateTrigger t (AppHost t) where
   newEventWithTrigger = AppHost . newEventWithTrigger
-  newFanEventWithTrigger fan = AppHost $ newFanEventWithTrigger fan
+  newFanEventWithTrigger trigger = AppHost $ newFanEventWithTrigger trigger
 
 -- | Run the application host monad in a reflex host frame and return the produced
 -- application info.
