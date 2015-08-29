@@ -1,8 +1,6 @@
 reflex-host [![Build Status](https://secure.travis-ci.org/bennofs/reflex-host.png?branch=master)](http://travis-ci.org/bennofs/reflex-host)
 ====================
 
-## Introduction
-
 An FRP framework needs to provide two things: it needs to supply the FRP network with input from the outside world (providing the "root" events on which the network is build)
 and it needs to perform actions in response to FRP events (for example, updating the user interface when an event fires).  
 However, the primitives that the reflex FRP library provides for this are very basic. 
