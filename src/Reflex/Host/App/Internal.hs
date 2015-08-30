@@ -18,9 +18,11 @@ import Control.Applicative
 import Control.Concurrent
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Control.Monad.Trans.RSS
+import Control.Monad.Writer.Class
 import Data.Dependent.Sum
 import Data.Maybe
+import Data.Monoid
 import Data.Semigroup.Applicative
 import Prelude
 import Reflex.Class hiding (constant)
@@ -140,26 +142,33 @@ switchAppInfo initialInfo updatedInfo = do
 -- type directly. Instead, use the methods provided by the 'MonadAppHost' typeclass and
 -- then run your application using 'hostApp' to choose this implementation.
 newtype AppHost t a = AppHost
-  { unAppHost :: ReaderT (AppEnv t) (WriterT (Ap (HostFrame t) (AppInfo t)) (HostFrame t)) a
+  { unAppHost :: RSST (AppEnv t) (Ap (HostFrame t) (AppInfo t)) () (HostFrame t) a
   }
 deriving instance ReflexHost t => Functor (AppHost t)
 deriving instance ReflexHost t => Applicative (AppHost t)
 deriving instance ReflexHost t => Monad (AppHost t)
-deriving instance ReflexHost t => MonadHold t (AppHost t)
-deriving instance ReflexHost t => MonadSample t (AppHost t)
+
+instance ReflexHost t => MonadHold t (AppHost t) where
+  hold a0 = AppHost . lift . hold a0
+
+instance ReflexHost t => MonadSample t (AppHost t) where
+  sample = AppHost . lift . sample
+
 deriving instance (MonadIO (HostFrame t), ReflexHost t) => MonadIO (AppHost t)
 deriving instance ReflexHost t => MonadFix (AppHost t)
-deriving instance ReflexHost t => MonadSubscribeEvent t (AppHost t)
+
+instance ReflexHost t => MonadSubscribeEvent t (AppHost t) where
+  subscribeEvent = AppHost . lift . subscribeEvent
 
 instance ReflexHost t => MonadReflexCreateTrigger t (AppHost t) where
-  newEventWithTrigger = AppHost . newEventWithTrigger
-  newFanEventWithTrigger trigger = AppHost $ newFanEventWithTrigger trigger
+  newEventWithTrigger = AppHost . lift . newEventWithTrigger
+  newFanEventWithTrigger trigger = AppHost . lift $ newFanEventWithTrigger trigger
 
 -- | Run the application host monad in a reflex host frame and return the produced
 -- application info.
 execAppHostFrame :: ReflexHost t => AppEnv t -> AppHost t () -> HostFrame t (AppInfo t)
-execAppHostFrame env app = do
-  Ap minfo <- execWriterT . flip runReaderT env . unAppHost $ app
+execAppHostFrame env (AppHost m) = do
+  ((), Ap minfo) <- execRSST m env ()
   minfo
 
 -- | Run an application. The argument is an action in the application host monad,
@@ -208,7 +217,7 @@ initHostApp app = do
 -- the primitives required for such a monad, so that higher-level functions can be
 -- implemented generically. An implementation is the 'AppHost' monad.
 --
--- This Much of the functionality of this class is also provided by its superclasses.
+-- Much of the functionality of this class is also provided by its superclasses.
 class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t m,
        MonadIO m, MonadIO (HostFrame t), MonadFix m, MonadFix (HostFrame t))
       => MonadAppHost t m | m -> t where
@@ -222,7 +231,7 @@ class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t 
   -- Note that the events fired by this function are fired asynchronously. In particular,
   -- if a lot of events are fired, then it can happen that the event queue already
   -- contains other events. In that case, those events will be fired first.
-  getAsyncFire :: m ([DSum (EventTrigger t)] -> IO ())
+  getFireAsync :: m ([DSum (EventTrigger t)] -> IO ())
 
   -- | Get a function to run the host monad. Useful for implementing dynamic switching.
   --
@@ -258,10 +267,10 @@ class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t 
 
 -- | 'AppHost' is an implementation of 'MonadAppHost'.
 instance (ReflexHost t, MonadIO (HostFrame t)) => MonadAppHost t (AppHost t) where
-  getAsyncFire = AppHost $ fmap liftIO . writeChan . envEventChan <$> ask
+  getFireAsync = AppHost $ fmap liftIO . writeChan . envEventChan <$> ask
   getRunAppHost = AppHost $ do
     env <- ask
     let rearrange (a, Ap m) = (m, a)
-    pure $ fmap rearrange . runWriterT . flip runReaderT env . unAppHost
+    pure $ \(AppHost m) -> rearrange <$> evalRSST m env ()
   performPostBuild_ mevent = AppHost . tell $ Ap mevent
-  liftHostFrame = AppHost . lift . lift
+  liftHostFrame = AppHost . lift

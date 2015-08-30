@@ -31,7 +31,7 @@ import Prelude -- Silence AMP warnings
 
 -- | Create a new event and return a function that can be used to construct an event
 -- trigger with an associated value. Note that this by itself will not fire the event.
--- To fire the event, you still need to use either 'performPostBuild_' or 'getAsyncFire'
+-- To fire the event, you still need to use either 'performPostBuild_' or 'getFireAsync'
 -- which can fire these event triggers with an associated value.
 --
 -- Note that in some cases (such as when there are no listeners), the returned function
@@ -48,7 +48,7 @@ newEventWithConstructor = do
 -- to fire the event.
 newExternalEvent :: MonadAppHost t m => m (Event t a, a -> IO Bool)
 newExternalEvent = do
-  asyncFire <- getAsyncFire
+  asyncFire <- getFireAsync
   (event, construct) <- newEventWithConstructor
   return (event, fmap isJust . T.traverse (asyncFire . pure) <=< construct)
 

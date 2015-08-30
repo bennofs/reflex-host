@@ -39,6 +39,7 @@ library
     , dlist
     , dependent-sum
     , transformers
+    , stateWriter
   exposed-modules:
     Reflex.Host.App
     Reflex.Host.App.Internal
