@@ -148,18 +148,22 @@ deriving instance ReflexHost t => Functor (AppHost t)
 deriving instance ReflexHost t => Applicative (AppHost t)
 deriving instance ReflexHost t => Monad (AppHost t)
 
+-- | 'AppHost' supports hold
 instance ReflexHost t => MonadHold t (AppHost t) where
   hold a0 = AppHost . lift . hold a0
 
+-- | 'AppHost' supports sample
 instance ReflexHost t => MonadSample t (AppHost t) where
   sample = AppHost . lift . sample
 
 deriving instance (MonadIO (HostFrame t), ReflexHost t) => MonadIO (AppHost t)
 deriving instance ReflexHost t => MonadFix (AppHost t)
 
+-- | You can subscribe to events in 'AppHost'
 instance ReflexHost t => MonadSubscribeEvent t (AppHost t) where
   subscribeEvent = AppHost . lift . subscribeEvent
 
+-- | You can create new events in 'AppHost'
 instance ReflexHost t => MonadReflexCreateTrigger t (AppHost t) where
   newEventWithTrigger = AppHost . lift . newEventWithTrigger
   newFanEventWithTrigger trigger = AppHost . lift $ newFanEventWithTrigger trigger
