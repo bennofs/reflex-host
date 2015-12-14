@@ -16,18 +16,21 @@ After you've installed the library, you can use it like this:
 
 ```haskell
 -- import the reflex-host library and reflex itself
-import Reflex.Host.App 
+import Reflex.Host.App
 import Reflex
+import Control.Concurrent (forkIO)
+import Control.Monad (forever)
+import Control.Monad.IO.Class (liftIO)
 
 -- The application should be generic in the host monad that is used
 app :: MonadAppHost t m => m ()
 app = do
   (inputEvent, inputFire) <- newExternalEvent
-  liftIO . forkIO $ getLine >>= inputFire
+  liftIO . forkIO . forever $ getLine >>= inputFire
   performEvent_ $ fmap (liftIO . putStrLn) inputEvent
 
 main :: IO ()
-main = hostApp app
+main = runSpiderHost $ hostApp app
 ```
 
 In the above example, we first implement the `reflex` library and the `reflex-host` library.
