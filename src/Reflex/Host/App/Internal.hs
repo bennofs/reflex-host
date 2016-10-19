@@ -21,6 +21,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.RSS
 import Control.Monad.Writer.Class
 import Data.Dependent.Sum
+import Data.Functor.Identity
 import Data.Maybe
 import Data.Monoid
 import Data.Semigroup.Applicative
@@ -35,7 +36,7 @@ import qualified Data.Traversable as T
 
 -- | AppInputs are inputs to the application triggered by the external UI.
 --   these are stored in a channel to be processed by the application.
-type AppInputs t = [DSum (EventTrigger t)]
+type AppInputs t = [DSum (EventTrigger t) Identity]
 
 -- | This is the environment in which the app host monad runs.
 data AppEnv t = AppEnv
@@ -49,7 +50,7 @@ data AppEnv t = AppEnv
 
 -- | An action that is run after a frame. It may return event triggers to fire events.
 -- For more information about this type, see the field 'eventsToPerform' of 'AppInfo'.
-type AppPerformAction t = HostFrame t (DL.DList (DSum (EventTrigger t)))
+type AppPerformAction t = HostFrame t (DL.DList (DSum (EventTrigger t) Identity))
 
 -- | Information required to set up the application. This also contains all reflex events
 -- that the application wants to perform. An 'AppInfo' is called *registered* or *active*
@@ -85,7 +86,7 @@ data AppInfo t = AppInfo
 
     -- | Delayed event triggers that will be fired immediately after the initial
     -- application setup has completed, before any external events are processed.
-  , triggersToFire :: Ap (HostFrame t) (DL.DList (DSum (EventTrigger t)))
+  , triggersToFire :: Ap (HostFrame t) (DL.DList (DSum (EventTrigger t) Identity))
   }
 
 -- | 'AppInfo' is a monoid. 'mappend' just merges the effects of both app infos.
@@ -107,7 +108,7 @@ infoQuit x = mempty { eventsToQuit = x }
 
 -- | Produce an 'AppInfo' which only contains 'triggersToFire'.
 infoFire :: Applicative (HostFrame t)
-           => HostFrame t (DL.DList (DSum (EventTrigger t))) -> AppInfo t
+           => HostFrame t (DL.DList (DSum (EventTrigger t) Identity)) -> AppInfo t
 infoFire x = mempty { triggersToFire = Ap x }
 
 -- | Extract the 'eventsToPerform' and 'eventsToQuit' and merge each into a single event.
@@ -235,7 +236,7 @@ class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t 
   -- Note that the events fired by this function are fired asynchronously. In particular,
   -- if a lot of events are fired, then it can happen that the event queue already
   -- contains other events. In that case, those events will be fired first.
-  getFireAsync :: m ([DSum (EventTrigger t)] -> IO ())
+  getFireAsync :: m ([DSum (EventTrigger t) Identity] -> IO ())
 
   -- | Get a function to run the host monad. Useful for implementing dynamic switching.
   --

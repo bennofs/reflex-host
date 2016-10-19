@@ -38,11 +38,11 @@ import Prelude -- Silence AMP warnings
 -- does return 'Nothing' instead of an event trigger. This does not mean that it will
 -- neccessarily return Nothing on the next call too though.
 newEventWithConstructor
-  :: MonadAppHost t m => m (Event t a, a -> IO (Maybe (DSum (EventTrigger t))))
+  :: (MonadAppHost t m, Applicative f) => m (Event t a, a -> IO (Maybe (DSum (EventTrigger t) f)))
 newEventWithConstructor = do
   ref <- liftIO $ newIORef Nothing
   event <- newEventWithTrigger (\h -> writeIORef ref Nothing <$ writeIORef ref (Just h))
-  return (event, \a -> fmap (:=> a) <$> liftIO (readIORef ref))
+  return (event, \a -> fmap (:=> pure a) <$> liftIO (readIORef ref))
 
 -- | Create a new event from an external event source. The returned function can be used
 -- to fire the event.

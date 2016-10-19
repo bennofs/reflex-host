@@ -1,5 +1,5 @@
 name:          reflex-host
-version:       0.1
+version:       0.2
 license:       BSD3
 license-file:  LICENSE
 cabal-version: >= 1.10
@@ -35,7 +35,7 @@ library
       base >= 4.4 && < 5
     , reducers >= 3.11
     , mtl
-    , reflex >= 0.3
+    , reflex >= 0.3 && <0.5
     , dlist
     , dependent-sum
     , transformers
