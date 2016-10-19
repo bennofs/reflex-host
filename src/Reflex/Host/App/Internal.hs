@@ -151,7 +151,9 @@ deriving instance ReflexHost t => Monad (AppHost t)
 
 -- | 'AppHost' supports hold
 instance ReflexHost t => MonadHold t (AppHost t) where
-  hold a0 = AppHost . lift . hold a0
+  hold            a b = AppHost $ lift $ hold a b
+  holdDyn         a b = AppHost $ lift $ holdDyn a b
+  holdIncremental a b = AppHost $ lift $ holdIncremental a b
 
 -- | 'AppHost' supports sample
 instance ReflexHost t => MonadSample t (AppHost t) where
