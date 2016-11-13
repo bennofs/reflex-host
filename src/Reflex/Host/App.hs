@@ -20,7 +20,6 @@ import Data.IORef
 import Data.Maybe
 import Data.Monoid
 import Reflex.Class
-import Reflex.Dynamic
 import Reflex.Host.App.Internal
 import Reflex.Host.Class
 

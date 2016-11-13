@@ -183,7 +183,7 @@ execAppHostFrame env (AppHost m) = do
 --
 -- This function will block until the application exits (when one of the 'eventsToQuit'
 -- fires).
-hostApp :: (ReflexHost t, MonadIO m, MonadReflexHost t m) => AppHost t () -> m ()
+hostApp :: (MonadIO m, MonadReflexHost t m) => AppHost t () -> m ()
 hostApp app = initHostApp app >>= F.mapM_ runStep where
   runStep (chan, step) = do
     nextInput <- liftIO (readChan chan)
