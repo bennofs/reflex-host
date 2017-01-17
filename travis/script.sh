@@ -1,56 +1,93 @@
 #!/usr/bin/env bash
 
-green='\e[0;32m'
-red='\e[0;31m'
-nc='\e[0m' # No Color
+begin_steps
 
-function step {
-  echo -e "${green}$1 ...${nc}"
-  bash /dev/stdin || exit 1
-}
+if [ -n "$ROOT" ]; then
+  step "Checking style with HLint" << EOF
+    hlint --cpp-simple src
+    if [ -d tests ]; then
+      hlint --cpp-simple tests
+    fi
+EOF
+fi
 
-function step_suppress {
-  echo -ne "${green}$1 ... ${nc}"
-  tmp=$(mktemp)
-  bash /dev/stdin &> $tmp && echo -e "${green}Done${nc}" || (
-    echo -e "${red}Failed${nc}"
-    echo "Output: "
-    cat $tmp
-    exit 1
-  )
-}
-
+set -e
 step "Configuring project" << 'EOF'
-  tmp=$(mktemp)
-  cabal-$CABALVER configure --enable-tests --enable-benchmarks -v2 --ghc-options="-Wall -Werror" &> $tmp || (
-    cat $tmp
+  cabal configure --enable-tests --enable-benchmarks -v2 --ghc-options="-Wall -Werror -ddump-minimal-imports" &> cabal.log || (
+    cat cabal.log
     exit 1
   )
   echo "Using packages: "
-  sed -nre 's/Dependency ([^ ]*) ==([^ :]*).*/\1 \2/p' $tmp | column -t | sed -e "s/^/  /"
+  sed -nre 's/Dependency ([^ ]*) ==([^ :]*).*/\1 \2/p' cabal.log | column -t | sed -e "s/^/  /"
+  echo "Flags chosen: "
+  sed -nr -e ':x; /\,$/ { N; s/,\n/,/; tx }' -e 's/Flags chosen: (.*)/\1/' -e 's/, /,/gp' cabal.log | tr ',' '\n'
 EOF
 
 step "Building project" << EOF
-  cabal-$CABALVER build
+  cabal build
 EOF
 
+set +e
+if [ -n "$ROOT" ]; then
+  step_suppress "Checking for unused dependencies" << EOF
+    packunused --ignore-package base
+EOF
+fi
+set -e
+
 step "Running tests" << EOF
-  cabal-$CABALVER test
+  cabal test
 EOF
 
 step "Creating source distribution" << EOF
-  cabal-$CABALVER check
-  cabal-$CABALVER sdist # tests that a source-distribution can be generated
+  cabal check
+  cabal sdist # tests that a source-distribution can be generated
 EOF
 
-#step_suppress "Checking source distribution" << 'EOF'
-#  # The following scriptlet checks that the resulting source distribution can be built & installed
-#  SRC_TGZ=$(cabal-$CABALVER info . | awk '{print $2 ".tar.gz";exit}')
-#  cd dist/
-#  if [ -f "$SRC_TGZ" ]; then
-#    cabal-$CABALVER install --enable-tests --enable-benchmarks "$SRC_TGZ"
-#  else
-#    echo "expected '$SRC_TGZ' not found"
-#    exit 1
-#  fi
-#EOF
+pkgid=$(cabal info . | awk '{print $2; exit}')
+
+step_suppress "Checking source distribution" << EOF
+  # The following scriptlet checks that the resulting source distribution can be built & installed
+  SRC_TGZ="dist/$pkgid.tar.gz"
+  if [ -f "\$SRC_TGZ" ]; then
+    cabal install --enable-tests --enable-benchmarks "\$SRC_TGZ"
+  else
+    echo "expected '\$SRC_TGZ' not found"
+    exit 1
+  fi
+EOF
+
+if [ -n "$ROOT" -a -n "$HACKAGE_AUTH" ]; then
+  step "Uploading package candidate" << EOF
+    curl https://hackage.haskell.org/packages/candidates \
+      -H 'Accept: text/plain' \
+      -u '$HACKAGE_AUTH' -F 'package=@dist/$pkgid.tar.gz'
+EOF
+fi
+
+if [ -n "$ROOT" ]; then
+  step "Generating package documentation" << EOF
+    HYPERLINK_FLAG="--hyperlink-source"
+    if hadddock --hyperlinked-source &> /dev/null; then
+      HYPERLINK_FLAG="--haddock-option='--hyperlinked-source'"
+    fi
+    cabal haddock \
+      --html --html-location='/package/\$pkg-\$version/docs'\
+      --contents-location='/package/\$pkg-\$version'\
+      \$HYPERLINK_FLAG \
+      --hoogle
+    cp -R dist/doc/html/* $pkgid-docs
+    tar cvz --format ustar $pkgid-docs -f $pkgid-docs.tar.gz
+    rm -r $pkgid-docs
+EOF
+fi
+
+if [ -n "$ROOT" -a -n "$HACKAGE_AUTH" ]; then
+  step "Uploading package documentation to hackage" << EOF
+    curl -X PUT 'https://hackage.haskell.org/package/$pkgid/candidate/docs' \
+      -H 'Content-Type: application/x-tar' -H 'Content-Encoding: gzip' \
+      -u '$HACKAGE_AUTH' --data-binary '@$pkgid-docs.tar.gz'
+EOF
+fi
+
+end_steps
