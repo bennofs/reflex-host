@@ -1,11 +1,12 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Module supporting the implementation of frameworks. You should import this if you
 -- want to build your own framework.
 module Reflex.Host.App
   ( hostApp
   , newEventWithConstructor, newExternalEvent
   , performEventAndTrigger_, performEvent_, performEvent
-  , switchAppHost, performAppHost, dynAppHost, holdAppHost
+  , switchAppHost, performAppHost, dynAppHost, holdAppHost, holdKeyAppHost
   , getPostBuild, performPostBuild, performEventAsync
   , MonadAppHost(..), AppHost()
   , AppInfo(..), infoPerform, infoQuit, infoFire, switchAppInfo
@@ -17,9 +18,11 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Dependent.Sum
 import Data.IORef
+import Data.Map.Strict (Map)
 import Data.Maybe
 import Data.Monoid
 import Reflex.Class
+import Reflex.Dynamic
 import Reflex.Host.App.Internal
 import Reflex.Host.Class
 
@@ -89,7 +92,7 @@ performEventAsync event = do
 -- more convenient to use.
 performPostBuild ::  (MonadAppHost t m) => HostFrame t a -> m (Event t a)
 performPostBuild action = do
-  (event, construct) <- newEventWithConstructor  
+  (event, construct) <- newEventWithConstructor
   performPostBuild_ $ do
     a <- action
     pure $ infoFire $ liftIO (F.foldMap pure <$> construct a)
@@ -121,8 +124,7 @@ runAppHost action = liftHostFrame . ($ action) =<< getRunAppHost
 -- next frame with the result of running it.
 switchAppHost :: MonadAppHost t m => HostFrame t (AppInfo t) -> Event t (m a) -> m (Event t a)
 switchAppHost initial event = do
-  run <- getRunAppHost
-  let runWithPost = run >=> \(post, a) -> (,a) <$> post
+  runWithPost <- getRunWithPost
   (infoEvent, valueEvent) <- fmap splitE . performEvent $ runWithPost <$> event
   performPostBuild_ $ flip switchAppInfo infoEvent =<< initial
   return valueEvent
@@ -149,6 +151,79 @@ dynAppHost dyn = do
 -- action.
 holdAppHost :: MonadAppHost t m => m a -> Event t (m a) -> m (Dynamic t a)
 holdAppHost mInit mChanged = do
+  -- Note: we execute the initial app host action directly in this frame.
+  --
+  -- This is necessary because we cannot sample behaviors at this point, as
+  -- behaviors may only be sampled after the construction process is complete.
+  -- (See MonadAppHost documentation for more info about these stages.)
+  --
+  -- Due to that restriction, we cannot just sample a behavior to get the initial
+  -- return value, but instead need to manually execute the initial app host here.
+  --
+  -- This off-by-one frame problem is also why there are so many switching functions:
+  -- switchAppHost, dynAppHost and holdAppHost are all slightly different in what
+  -- information they can return "directly" and what is only available at a later point
+  -- in time.
   (postActions, aInit) <- runAppHost mInit
   aChanged <- switchAppHost postActions mChanged
   holdDyn aInit aChanged
+
+-- | Helper to execute host action in one step (instead of usual 3 steps)
+getRunWithPost :: MonadAppHost t m => m (m a -> HostFrame t (AppInfo t, a))
+getRunWithPost = do
+  run <- getRunAppHost
+  return $ run >=> \(post, a) -> (,a) <$> post
+
+-- | Mix in host action after an event fires. Only the 'AppInfo' of the
+-- currently active key-value pairs of application is registered. For example, 'performEvent'
+-- calls are only executed for the currently active application. As soon as it is
+-- switched out and replaced by a different application, they are no longer executed.
+--
+-- The first argument specifies the application that is used initially, before the
+-- event fires the first time.
+--
+-- Whenever a switch to a new host action happens, the returned dynamic is updated
+-- with current active key-value pairs.
+--
+-- The function is helpful for implementation of dynamic collections where addition
+-- or deletion of elements don't affect other parts of the collection. Each item
+-- of the key-value pair is constructed once and hence post build event is fired
+-- only once (or when you explicitly replaces an element with new one).
+holdKeyAppHost :: forall t m a k . (MonadAppHost t m, Ord k)
+  => Map k (m a)                   -- ^ Initial set of components
+  -> Event t (Map k (Maybe (m a))) -- ^ 'Nothing' values indicates that the key should be deleted, 'Just' indicates that the key should be added/replaced
+  -> m (Dynamic t (Map k a))       -- ^ Reflects current state of the collection.
+holdKeyAppHost initialMap event = do
+  -- describe how to execute partial updates
+  run <- getRunAppHost
+  postRun <- getRunWithPost
+  let
+    executedEvent :: Event t (Map k (Maybe (HostFrame t (AppInfo t, a))))
+    executedEvent = fmap (fmap postRun) <$> event
+
+    liftedEvent :: Event t (HostFrame t (Map k (Maybe (AppInfo t, a))))
+    liftedEvent = traverse sequence <$> executedEvent
+
+  -- execute partial updates to split values and app infos
+  updMap :: Event t (Map k (Maybe (AppInfo t, a))) <- performEvent liftedEvent
+  let
+    updInfoMap :: Event t (Map k (Maybe (AppInfo t)))
+    updInfoMap = fmap (fmap fst) <$> updMap
+
+    updValueMap :: Event t (Map k (Maybe a))
+    updValueMap = fmap (fmap snd) <$> updMap
+
+  -- start the initial components (see holdAppHost for why this is necessary to do explicitly)
+  initial :: Map k (HostFrame t (AppInfo t), a) <- liftHostFrame $ traverse run initialMap
+  let
+    initialInfo :: HostFrame t (Map k (AppInfo t))
+    initialInfo = traverse fst initial
+
+    initialValues :: Map k a
+    initialValues = fmap snd initial
+
+  -- register partial updates
+  performPostBuild_ $ flip switchKeyAppInfo updInfoMap =<< initialInfo
+
+  -- collect computed outputs
+  foldDyn updateMap initialValues updValueMap
