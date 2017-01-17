@@ -152,9 +152,9 @@ switchAppInfo initialInfo updatedInfo = do
 -- components/widgets.
 switchKeyAppInfo :: forall t m k .
     (Reflex t, MonadHold t m, MonadFix m, Applicative (HostFrame t), Ord k)
-  => Map k (AppInfo t) -- ^ Initial FRP application
+  => Map k (AppInfo t)                   -- ^ Initial FRP application
   -> Event t (Map k (Maybe (AppInfo t))) -- ^ Updates, 'Nothing' deletes specified key and 'Just' adds/overwrite given key
-  -> m (AppInfo t) -- ^ Collected application info
+  -> m (AppInfo t)                       -- ^ Collected application info
 switchKeyAppInfo initialMap updatedMap = do
   -- calculate eventsToPerform events
   let initialPerforms :: Map k (Event t (AppPerformAction t))
@@ -181,19 +181,18 @@ switchKeyAppInfo initialMap updatedMap = do
     , eventsToQuit    = pure toQuit
     , triggersToFire  = F.foldMap id initialTriggers
     }
-  where
-    initialEvents = fmap appInfoEvents initialMap
-    updateEvents = fmap (fmap appInfoEvents) <$> updatedMap
-    initialTriggers = fmap triggersToFire initialMap
-    updatedTriggers = getAp . F.foldMap id . fmap triggersToFire . mapCutMaybes <$> updatedMap
-    mapCutMaybes = fmap fromJust . M.filter isJust
+ where
+  initialEvents = fmap appInfoEvents initialMap
+  updateEvents = fmap (fmap appInfoEvents) <$> updatedMap
+  initialTriggers = fmap triggersToFire initialMap
+  updatedTriggers = getAp . F.foldMap triggersToFire . M.mapMaybe id <$> updatedMap
 
 -- | Helper to merge update map with current state
 updateMap :: Ord k => Map k (Maybe a) -> Map k a -> Map k a
 updateMap updMap curMap = M.foldlWithKey' go curMap updMap
-  where
-    go m k Nothing = M.delete k m
-    go m k (Just v) = M.insert k v m
+ where
+  go m k Nothing = M.delete k m
+  go m k (Just v) = M.insert k v m
 --------------------------------------------------------------------------------
 
 -- | An implementation of the 'MonadAppHost' typeclass. You should not need to use this

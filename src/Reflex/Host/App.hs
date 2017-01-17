@@ -124,8 +124,7 @@ runAppHost action = liftHostFrame . ($ action) =<< getRunAppHost
 -- next frame with the result of running it.
 switchAppHost :: MonadAppHost t m => HostFrame t (AppInfo t) -> Event t (m a) -> m (Event t a)
 switchAppHost initial event = do
-  run <- getRunAppHost
-  let runWithPost = run >=> \(post, a) -> (,a) <$> post
+  runWithPost <- getRunWithPost
   (infoEvent, valueEvent) <- fmap splitE . performEvent $ runWithPost <$> event
   performPostBuild_ $ flip switchAppInfo infoEvent =<< initial
   return valueEvent
@@ -152,6 +151,19 @@ dynAppHost dyn = do
 -- action.
 holdAppHost :: MonadAppHost t m => m a -> Event t (m a) -> m (Dynamic t a)
 holdAppHost mInit mChanged = do
+  -- Note: we execute the initial app host action directly in this frame.
+  --
+  -- This is necessary because we cannot sample behaviors at this point, as
+  -- behaviors may only be sampled after the construction process is complete.
+  -- (See MonadAppHost documentation for more info about these stages.)
+  --
+  -- Due to that restriction, we cannot just sample a behavior to get the initial
+  -- return value, but instead need to manually execute the initial app host here.
+  --
+  -- This off-by-one frame problem is also why there are so many switching functions:
+  -- switchAppHost, dynAppHost and holdAppHost are all slightly different in what
+  -- information they can return "directly" and what is only available at a later point
+  -- in time.
   (postActions, aInit) <- runAppHost mInit
   aChanged <- switchAppHost postActions mChanged
   holdDyn aInit aChanged
@@ -178,9 +190,9 @@ getRunWithPost = do
 -- of the key-value pair is constructed once and hence post build event is fired
 -- only once (or when you explicitly replaces an element with new one).
 holdKeyAppHost :: forall t m a k . (MonadAppHost t m, Ord k)
-  => Map k (m a) -- ^ Initial set of components
+  => Map k (m a)                   -- ^ Initial set of components
   -> Event t (Map k (Maybe (m a))) -- ^ 'Nothing' values indicates that the key should be deleted, 'Just' indicates that the key should be added/replaced
-  -> m (Dynamic t (Map k a)) -- ^ Reflects current state of the collection.
+  -> m (Dynamic t (Map k a))       -- ^ Reflects current state of the collection.
 holdKeyAppHost initialMap event = do
   -- describe how to execute partial updates
   run <- getRunAppHost
@@ -190,7 +202,7 @@ holdKeyAppHost initialMap event = do
     executedEvent = fmap (fmap postRun) <$> event
 
     liftedEvent :: Event t (HostFrame t (Map k (Maybe (AppInfo t, a))))
-    liftedEvent = sequence . fmap sequence <$> executedEvent
+    liftedEvent = traverse sequence <$> executedEvent
 
   -- execute partial updates to split values and app infos
   updMap :: Event t (Map k (Maybe (AppInfo t, a))) <- performEvent liftedEvent
@@ -201,11 +213,11 @@ holdKeyAppHost initialMap event = do
     updValueMap :: Event t (Map k (Maybe a))
     updValueMap = fmap (fmap snd) <$> updMap
 
-  -- construct initial values
-  initial :: Map k (HostFrame t (AppInfo t), a) <- liftHostFrame . sequence $ run <$> initialMap
+  -- start the initial components (see holdAppHost for why this is necessary to do explicitly)
+  initial :: Map k (HostFrame t (AppInfo t), a) <- liftHostFrame $ traverse run initialMap
   let
     initialInfo :: HostFrame t (Map k (AppInfo t))
-    initialInfo = sequence . fmap fst $ initial
+    initialInfo = traverse fst initial
 
     initialValues :: Map k a
     initialValues = fmap snd initial
