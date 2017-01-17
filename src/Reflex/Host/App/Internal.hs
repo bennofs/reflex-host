@@ -35,7 +35,7 @@ import qualified Data.Traversable as T
 --------------------------------------------------------------------------------
 
 -- | AppInputs are inputs to the application triggered by the external UI.
---   these are stored in a channel to be processed by the application.
+--   These are stored in a channel to be processed by the application.
 type AppInputs t = [DSum (EventTrigger t) Identity]
 
 -- | This is the environment in which the app host monad runs.
@@ -179,7 +179,7 @@ execAppHostFrame env (AppHost m) = do
   minfo
 
 -- | Run an application. The argument is an action in the application host monad,
--- where events can be set up (for example by using 'newExteneralEvent').
+-- where events can be set up (for example by using 'newExternalEvent').
 --
 -- This function will block until the application exits (when one of the 'eventsToQuit'
 -- fires).
@@ -246,7 +246,7 @@ class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t 
   --
   -- 1. First, the events and behaviors (using hold) are created. This step does not read
   --    the value of any behavior, since that breaks MonadFix in some cases.
-  -- 2. After all events and behaviors have been created, the initial value of behavior
+  -- 2. After all events and behaviors have been created, the initial value of behaviors
   --    can now be read (using for example 'sample')
   -- 3. This information is then used to create an 'AppInfo' which contains all the
   --    information about the actions to perform in response to the FRP events.
@@ -257,9 +257,9 @@ class (ReflexHost t, MonadSample t m, MonadHold t m, MonadReflexCreateTrigger t 
   -- then perform step 2, and the returned 'AppInfo' represents step 3.
   getRunAppHost :: m (m a -> HostFrame t (HostFrame t (AppInfo t), a))
 
-  -- | Run an action after all other actions have been ran and add information about the
+  -- | Run an action after all other actions have been run and add information about the
   -- application. After the host monad's actions have been executed, actions registered
-  -- with this function will be ran and the returned 'AppInfo's will be merged to get the
+  -- with this function will be run and the returned 'AppInfo's will be merged to get the
   -- final 'AppInfo'.
   --
   -- One use case for this function is to sample the initial values of some behaviors.
