@@ -42,6 +42,10 @@ EOF
 EOF
 fi
 
+step "Installing add-source dependencies" <<EOF
+  cabal install --only-dependencies --enable-tests --enable-benchmarks ${ALLOW_NEWER:+--allow-newer="$ALLOW_NEWER"}
+EOF
+
 if [ ! -z $ROOT ]; then
   TOOLS="hlint packunused haddock"
 

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall -Wwarn #-}
 module Main (main) where
 
 import Data.IORef
