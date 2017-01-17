@@ -30,7 +30,7 @@ EOF
 set +e
 if [ -n "$ROOT" ]; then
   step_suppress "Checking for unused dependencies" << EOF
-    packunused --ignore-package base
+    packunused --ignore-package base --ignore-package doctest
 EOF
 fi
 set -e
