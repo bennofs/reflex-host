@@ -22,15 +22,18 @@ import Control.Monad.Trans.RSS
 import Control.Monad.Writer.Class
 import Data.Dependent.Sum
 import Data.Functor.Identity
+import Data.Map.Strict (Map)
 import Data.Maybe
 import Data.Monoid
 import Data.Semigroup.Applicative
 import Prelude
 import Reflex.Class hiding (constant)
+import Reflex.Dynamic
 import Reflex.Host.Class
 
 import qualified Data.DList as DL
 import qualified Data.Foldable as F
+import qualified Data.Map.Strict as M
 import qualified Data.Traversable as T
 --------------------------------------------------------------------------------
 
@@ -137,6 +140,60 @@ switchAppInfo initialInfo updatedInfo = do
  where
   (updatedToPerform, updatedToQuit) = splitE $ fmap appInfoEvents updatedInfo
   (initialToPerform, initialToQuit) = appInfoEvents initialInfo
+
+-- | Switch to a different 'AppInfo' whenever an 'Event' fires. Only the events of the
+-- currently active application are performed. Unlike 'switchAppInfo' the primitive
+-- allows partial update of FRP network, new added pieces of FRP network don't
+-- force of recreation of other pieces under different keys. Post build event of each
+-- key-value pair is called only once (or when explicitly recreated).
+--
+-- This low-level primitive is used for implementing higher-level functions such as
+-- 'switchKeyAppHost'. Also this is key primitive of creation of dynamic collections of
+-- components/widgets.
+switchKeyAppInfo :: forall t m k .
+    (Reflex t, MonadHold t m, MonadFix m, Applicative (HostFrame t), Ord k)
+  => Map k (AppInfo t) -- ^ Initial FRP application
+  -> Event t (Map k (Maybe (AppInfo t))) -- ^ Updates, 'Nothing' deletes specified key and 'Just' adds/overwrite given key
+  -> m (AppInfo t) -- ^ Collected application info
+switchKeyAppInfo initialMap updatedMap = do
+  -- calculate eventsToPerform events
+  let initialPerforms :: Map k (Event t (AppPerformAction t))
+      initialPerforms = fst <$> initialEvents
+
+      performsEvent :: Event t (Map k (Maybe (Event t (AppPerformAction t))))
+      performsEvent = fmap (fmap fst) <$> updateEvents
+
+  toPerformMap <- switch . current . fmap mergeMap <$> foldDyn updateMap initialPerforms performsEvent
+  let toPerform = getAp . F.foldMap Ap <$> toPerformMap
+
+  -- calculate eventsToQuit
+  let initialToQuit :: Map k (Event t ())
+      initialToQuit = snd <$> initialEvents
+
+      toQuitEvent :: Event t (Map k (Maybe (Event t ())))
+      toQuitEvent = fmap (fmap snd) <$> updateEvents
+
+  toQuitMap <- switch . current . fmap mergeMap <$> foldDyn updateMap initialToQuit toQuitEvent
+  let toQuit = F.foldMap id <$> toQuitMap
+
+  pure AppInfo {
+      eventsToPerform = pure toPerform <> pure updatedTriggers
+    , eventsToQuit    = pure toQuit
+    , triggersToFire  = F.foldMap id initialTriggers
+    }
+  where
+    initialEvents = fmap appInfoEvents initialMap
+    updateEvents = fmap (fmap appInfoEvents) <$> updatedMap
+    initialTriggers = fmap triggersToFire initialMap
+    updatedTriggers = getAp . F.foldMap id . fmap triggersToFire . mapCutMaybes <$> updatedMap
+    mapCutMaybes = fmap fromJust . M.filter isJust
+
+-- | Helper to merge update map with current state
+updateMap :: Ord k => Map k (Maybe a) -> Map k a -> Map k a
+updateMap updMap curMap = M.foldlWithKey' go curMap updMap
+  where
+    go m k Nothing = M.delete k m
+    go m k (Just v) = M.insert k v m
 --------------------------------------------------------------------------------
 
 -- | An implementation of the 'MonadAppHost' typeclass. You should not need to use this

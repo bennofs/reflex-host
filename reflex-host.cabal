@@ -10,8 +10,8 @@ homepage:      http://github.com/bennofs/reflex-host/
 bug-reports:   http://github.com/bennofs/reflex-host/issues
 copyright:     Copyright (C) 2014 Benno Fünfstück
 synopsis:      Implementation support for reflex frameworks
-description:   
-  The reflex FRP library's functions for implementing a framework are quite lowlevel. 
+description:
+  The reflex FRP library's functions for implementing a framework are quite lowlevel.
   This library provides higher-level support for on top of the basic functions from reflex.
   It provides a monad with support for external event sources and performing IO actions in response to events.
 build-type:    Custom
@@ -33,6 +33,7 @@ library
   ghc-options: -Wall -fwarn-tabs
   build-depends:
       base >= 4.4 && < 5
+    , containers
     , reducers >= 3.11
     , mtl
     , reflex >= 0.5 && <0.6
