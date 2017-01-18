@@ -1,0 +1,12 @@
+flags: {}
+extra-package-dbs: []
+packages:
+- '.'
+- location:
+    git: https://github.com/reflex-frp/reflex
+    commit: 4eb436e0d94418c11e4c06be7fa982d59629c9a9
+  extra-dep: true
+extra-deps:
+- prim-uniq-0.1.0.1
+- ref-tf-0.4.0.1
+resolver: lts-7.16
