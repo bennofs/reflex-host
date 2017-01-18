@@ -14,7 +14,8 @@ description:
   The reflex FRP library's functions for implementing a framework are quite lowlevel.
   This library provides higher-level support for on top of the basic functions from reflex.
   It provides a monad with support for external event sources and performing IO actions in response to events.
-build-type:    Custom
+category:      FRP, Reflex
+build-type:    Simple
 
 extra-source-files:
   .ghci
@@ -44,13 +45,3 @@ library
   exposed-modules:
     Reflex.Host.App
     Reflex.Host.App.Internal
-
-test-suite doctests
-  type:    exitcode-stdio-1.0
-  main-is: doctests.hs
-  default-language: Haskell2010
-  build-depends:
-      base
-    , doctest >= 0.9.1
-  ghc-options: -Wall -threaded
-  hs-source-dirs: tests
