@@ -211,6 +211,7 @@ instance ReflexHost t => MonadHold t (AppHost t) where
   holdDyn         a b = AppHost $ lift $ holdDyn a b
   holdIncremental a b = AppHost $ lift $ holdIncremental a b
   buildDynamic    a b = AppHost $ lift $ buildDynamic a b
+  headE           a   = AppHost $ lift $ headE a
 
 -- | 'AppHost' supports sample
 instance ReflexHost t => MonadSample t (AppHost t) where
