@@ -24,13 +24,16 @@ step "Configuring project" << 'EOF'
 EOF
 
 step "Building project" << EOF
-  cabal build
+  cabal build --ghc-option=-ddump-minimal-imports
 EOF
 
 set +e
 if [ -n "$ROOT" ]; then
   step_suppress "Checking for unused dependencies" << EOF
+    # packunused uses stack if we don't rename the stack.yaml
+    mv stack.yaml stack.yaml.bak
     packunused --ignore-package base --ignore-package doctest
+    mv stack.yaml.bak stack.yaml
 EOF
 fi
 set -e
