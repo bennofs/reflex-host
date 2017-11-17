@@ -4,9 +4,9 @@ packages:
 - '.'
 - location:
     git: https://github.com/reflex-frp/reflex
-    commit: a1092192c61f3dec924a8e2686dfe3440681bab3
+    commit: 60d2878142943487987feeeea108dbed5405f469
   extra-dep: true
 extra-deps:
 - prim-uniq-0.1.0.1
 - ref-tf-0.4.0.1
-resolver: lts-8.22
+resolver: lts-9.13
