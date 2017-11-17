@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -27,7 +26,7 @@ import Data.Maybe
 import Data.Monoid
 import Data.Semigroup.Applicative
 import Prelude
-import Reflex.Class hiding (constant)
+import Reflex.Class
 import Reflex.Dynamic
 import Reflex.Host.Class
 
@@ -42,7 +41,7 @@ import qualified Data.Traversable as T
 type AppInputs t = [DSum (EventTrigger t) Identity]
 
 -- | This is the environment in which the app host monad runs.
-data AppEnv t = AppEnv
+newtype AppEnv t = AppEnv
   { -- | This is the channel to which external events should push their triggers.
     --
     -- Because this is a channel, there is no guarrante that the event that was pushed
