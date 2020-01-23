@@ -1,14 +1,14 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FunctionalDependencies     #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE UndecidableInstances       #-}
 -- | Module exposing the internal implementation of the host monad.
 -- There is no guarrante about stability of this module.
 -- If possible, use 'Reflex.Host.App' instead.
@@ -22,18 +22,18 @@ import Control.Monad.Trans.RSS
 import Control.Monad.Writer.Class
 import Data.Dependent.Sum
 import Data.Functor.Identity
-import Data.Map.Strict (Map)
+import Data.Map.Strict            (Map)
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid                hiding (Ap (..))
 import Data.Semigroup.Applicative
 import Prelude
-import Reflex.Class hiding (constant)
+import Reflex.Class               hiding (constant)
 import Reflex.Dynamic
 import Reflex.Host.Class
 
-import qualified Data.DList as DL
-import qualified Data.Foldable as F
-import qualified Data.Map.Strict as M
+import qualified Data.DList       as DL
+import qualified Data.Foldable    as F
+import qualified Data.Map.Strict  as M
 import qualified Data.Traversable as T
 --------------------------------------------------------------------------------
 
@@ -85,11 +85,11 @@ data AppInfo t = AppInfo
     eventsToPerform :: DL.DList (Event t (AppPerformAction t))
 
     -- | Events that, when fired, quit the application.
-  , eventsToQuit :: DL.DList (Event t ())
+  , eventsToQuit    :: DL.DList (Event t ())
 
     -- | Delayed event triggers that will be fired immediately after the initial
     -- application setup has completed, before any external events are processed.
-  , triggersToFire :: Ap (HostFrame t) (DL.DList (DSum (EventTrigger t) Identity))
+  , triggersToFire  :: Ap (HostFrame t) (DL.DList (DSum (EventTrigger t) Identity))
   }
 
 -- | 'AppInfo' is a monoid. 'mappend' just merges the effects of both app infos.
@@ -98,6 +98,10 @@ instance Applicative (HostFrame t) => Monoid (AppInfo t) where
   mempty = AppInfo mempty mempty mempty
   mappend (AppInfo a b c) (AppInfo a' b' c') =
     AppInfo (mappend a a') (mappend b b') (mappend c c')
+
+instance Applicative (HostFrame t) => Semigroup (AppInfo t) where
+  (<>) (AppInfo a b c) (AppInfo a' b' c') =
+    AppInfo ((<>) a a') ((<>) b b') ((<>) c c')
 
 -- | Produce an 'AppInfo' which only contains 'eventsToPerform'. This is useful in a
 -- monoid chain, like @infoToPerform toPerform <> infoToQuit toQuit@.
@@ -191,7 +195,7 @@ switchKeyAppInfo initialMap updatedMap = do
 updateMap :: Ord k => Map k (Maybe a) -> Map k a -> Map k a
 updateMap updMap curMap = M.foldlWithKey' go curMap updMap
  where
-  go m k Nothing = M.delete k m
+  go m k Nothing  = M.delete k m
   go m k (Just v) = M.insert k v m
 --------------------------------------------------------------------------------
 

@@ -1,8 +1,9 @@
+cabal-version: 2.4
+
 name:          reflex-host
 version:       0.3
-license:       BSD3
+license:       BSD-3-Clause
 license-file:  LICENSE
-cabal-version: >= 1.10
 author:        Benno Fünfstück
 maintainer:    Benno Fünfstück <benno.fuenfstueck@gmail.com>
 stability:     experimental
@@ -16,6 +17,7 @@ description:
   It provides a monad with support for external event sources and performing IO actions in response to events.
 category:      FRP, Reflex
 build-type:    Simple
+tested-with:   GHC == 8.6.5, GHC == 8.4.4
 
 extra-source-files:
   .ghci
@@ -33,11 +35,11 @@ library
   default-language: Haskell2010
   ghc-options: -Wall -fwarn-tabs
   build-depends:
-      base >= 4.4 && < 5
+      base >= 4.10.1.0 && < 4.13
     , containers
     , reducers >= 3.11
     , mtl
-    , reflex >= 0.5 && <0.6
+    , reflex >= 0.6 && <0.7
     , dlist
     , dependent-sum
     , transformers
